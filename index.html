@@ -544,7 +544,7 @@ function variableCot(d){
   s.push({k:"E"});
   const ct = d.contacto || CONTACTO_DEF;
   H("Información de Contacto", "fin");
-  s.push({k:"N", g:"fin", r:[{t:"Nombre:", b:true}, {t:" Keyner Steban Trillos Useche (K&T CODE)"}]});
+  s.push({k:"N", g:"fin", r:[{t:"Empresa:", b:true}, {t:" K&T CODE"}]});
   if (ct.tel && ct.tel.trim()) s.push({k:"N", g:"fin", r:[{t:"Teléfono / WhatsApp:", b:true}, {t:" " + ct.tel.trim()}]});
   if (ct.correo && ct.correo.trim()) s.push({k:"N", g:"fin", r:[{t:"Correo:", b:true}, {t:" " + ct.correo.trim()}]});
   if (ct.web && ct.web.trim()) s.push({k:"N", g:"fin", r:[{t:"Sitio web:", b:true}, {t:" " + ct.web.trim()}]});
@@ -554,6 +554,7 @@ function variableCot(d){
 /* ---------- Word: tu plantilla original, solo cambian los datos ---------- */
 const RPR = (b,i) => `<w:rPr><w:rFonts w:eastAsia="Times New Roman" w:cs="Arial"/>${b?"<w:b/><w:bCs/>":""}${i?"<w:i/><w:iCs/>":""}<w:color w:val="000000"/><w:lang w:val="es-CO" w:eastAsia="es-MX"/></w:rPr>`;
 const PPR = {
+  C: `<w:pPr><w:widowControl/><w:autoSpaceDE/><w:autoSpaceDN/><w:spacing w:before="0"/><w:jc w:val="center"/>${RPR()}</w:pPr>`,
   N: `<w:pPr><w:widowControl/><w:autoSpaceDE/><w:autoSpaceDN/><w:spacing w:before="0"/>${RPR()}</w:pPr>`,
   H: `<w:pPr><w:widowControl/><w:autoSpaceDE/><w:autoSpaceDN/><w:spacing w:before="0" w:after="100" w:afterAutospacing="1"/><w:outlineLvl w:val="2"/>${RPR(true)}</w:pPr>`,
   B: n => `<w:pPr><w:widowControl/><w:numPr><w:ilvl w:val="0"/><w:numId w:val="${n}"/></w:numPr><w:autoSpaceDE/><w:autoSpaceDN/><w:spacing w:before="0" w:after="100" w:afterAutospacing="1"/>${RPR()}</w:pPr>`
@@ -588,10 +589,15 @@ async function makeDocx(d){
     xml = xml.replace("<w:t>CUENTA DE COBRO</w:t>", () => "<w:t>COTIZACIÓN</w:t>");
     xml = quitarPar(xml, "3. Forma de Pago");
     xml = quitarPar(xml, "Nota: Declaro bajo");
+    ["name=\"Firma\"", "<w:t>__________________________________</w:t>", "<w:t>Keyner Steban Trillos Useche</w:t>", "<w:t>RUT:</w:t>", "<w:t>K&amp;T CODE</w:t>"].forEach(n => { xml = quitarPar(xml, n); });
+    if (d.proyecto && d.proyecto.trim()) {
+      const i = xml.indexOf("<w:t>COTIZACIÓN</w:t>"), e = xml.indexOf("</w:p>", i) + 6;
+      xml = xml.slice(0, e) + para({k:"C", r:[{t:d.proyecto.trim(), b:true}]}) + xml.slice(e);
+    }
   }
   const receptor = para({k:"N", r:[{t:"Razón Social / Proyecto:", b:true}, {t:" " + (d.cliente || "")}]}) +
     (d.nit && d.nit.trim() ? para({k:"N", r:[{t:"NIT / CC:", b:true}, {t:" " + d.nit.trim()}]}) : "") +
-    (cot && d.proyecto && d.proyecto.trim() ? para({k:"N", r:[{t:"Nombre de la cotización:", b:true}, {t:" " + d.proyecto.trim()}]}) : "");
+    "";
   xml = xml.replace("{{FECHA}}", () => escX(d.fecha || hoy()))
            .replace("{{RECEPTOR}}", () => receptor)
            .replace("{{CUERPO}}", () => (cot ? variableCot(d) : variable(d)).map(para).join(""))
@@ -613,7 +619,8 @@ function htmlPara(p){
 function fullSequence(d){
   const cot = d.tipo === "cotizacion";
   const top = [
-    {k:"C", r:[{t:cot ? "COTIZACIÓN" : "CUENTA DE COBRO", b:true}]}, {k:"E"},
+    {k:"C", r:[{t:cot ? "COTIZACIÓN" : "CUENTA DE COBRO", b:true}]},
+    ...(cot && d.proyecto && d.proyecto.trim() ? [{k:"C", r:[{t:d.proyecto.trim(), b:true}]}] : []), {k:"E"},
     {k:"C", r:[{t:d.fecha || hoy()}]}, {k:"E"},
     {k:"N", r:[{t:"EMISOR (Prestador del servicio):", b:true}]},
     {k:"N", r:[{t:"Nombre:", b:true}, {t:" Keyner Steban Trillos Useche"}]},
@@ -621,7 +628,6 @@ function fullSequence(d){
     {k:"N", r:[{t:"RECEPTOR (Cliente):", b:true}]},
     {k:"N", r:[{t:"Razón Social / Proyecto:", b:true}, {t:" " + (d.cliente || "")}]},
     ...(d.nit && d.nit.trim() ? [{k:"N", r:[{t:"NIT / CC:", b:true}, {t:" " + d.nit.trim()}]}] : []),
-    ...(cot && d.proyecto && d.proyecto.trim() ? [{k:"N", r:[{t:"Nombre de la cotización:", b:true}, {t:" " + d.proyecto.trim()}]}] : []),
     {k:"BR"}
   ];
   const firma = [
@@ -631,7 +637,7 @@ function fullSequence(d){
     {k:"WC", r:[{t:"RUT:", b:true}, {t:" 1090384736-8"}]},
     {k:"WC", r:[{t:"K&T CODE", b:true}]}
   ];
-  if (cot) { const fin = [{k:"E"}, ...firma]; fin.forEach(p => p.g = "fin"); return [...top, ...variableCot(d), ...fin]; }
+  if (cot) return [...top, ...variableCot(d)];  // la cotización va sin firma: solo datos de la empresa
   const bottom = [
     {k:"BR"},
     {k:"H", r:[{t:"3. Forma de Pago", b:true}]},
