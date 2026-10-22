@@ -1123,7 +1123,8 @@ const idDrive = v => v?.driveId || (String(v?.driveUrl || "").match(/\/d\/([\w-]
 async function subirDrive(d, reemplazar){
   const blob = await makePdf(d);
   const nom = tituloArchivo(d);
-  const j = await driveEnviar({accion:"subir", nombre:nom, pdf: await aBase64(blob), fecha:d.fecha, cliente:d.cliente, nit:d.nit, valor: valor(d.suma, d.moneda), reemplazar: reemplazar || ""});
+  const cot = d.tipo === "cotizacion";
+  const j = await driveEnviar({accion:"subir", tipo: cot ? "cotizacion" : "cobro", carpeta: cot ? "Cotizaciones" : "Cuentas de cobro K&T", nombre:nom, pdf: await aBase64(blob), fecha:d.fecha, cliente:d.cliente, nit:d.nit, valor: valor(d.suma, d.moneda), reemplazar: reemplazar || ""});
   return {url: enlaceSeguro(j.url), id: String(j.id || ""), nombre: nom};
 }
 function marcarDrive(id, r){
@@ -1144,8 +1145,8 @@ async function subirActual(){
   finally { $("btnDrive").disabled = false; }
 }
 function pintarDriveInfo(){
-  $("driveInfo").textContent = CFG.driveUrl ? "Conectado con la URL de config.js. Los PDF se guardan en la carpeta «Cuentas de cobro K&T» de tu Drive."
-    : enWeb() ? "Usa la URL del script guardada en Vercel (DRIVE_SCRIPT_URL). Los PDF se guardan en la carpeta «Cuentas de cobro K&T» de tu Drive."
+  $("driveInfo").textContent = CFG.driveUrl ? "Conectado con la URL de config.js. Las cuentas de cobro se guardan en la carpeta «Cuentas de cobro K&T» y las cotizaciones en «Cotizaciones»."
+    : enWeb() ? "Usa la URL del script guardada en Vercel (DRIVE_SCRIPT_URL). Las cuentas de cobro se guardan en la carpeta «Cuentas de cobro K&T» y las cotizaciones en «Cotizaciones»."
     : "Para subir PDF a Drive, pon la URL de tu script de Google en config.js (driveUrl). Los pasos están en LEEME.md.";
 }
 
@@ -1229,7 +1230,7 @@ function bindHist(){
   pintarDriveInfo();
   $("btnTestDrive").onclick = async () => {
     setSt("stDrive", "Probando…");
-    try { const j = await driveEnviar({accion:"probar"}); setSt("stDrive", `Conectado. Carpeta: ${j.carpeta || "Cuentas de cobro K&T"}.`, "ok"); }
+    try { const j = await driveEnviar({accion:"probar"}); setSt("stDrive", `Conectado. Carpetas: ${j.carpeta || "Cuentas de cobro K&T y Cotizaciones"}.`, "ok"); }
     catch (e) { setSt("stDrive", e.message, "err"); }
   };
   $("btnShare").onclick = () => listo && compartir(listo);
