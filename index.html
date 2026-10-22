@@ -543,11 +543,12 @@ function variableCot(d){
   }
   s.push({k:"E"});
   const ct = d.contacto || CONTACTO_DEF;
-  H("Información de Contacto", "fin");
-  s.push({k:"N", g:"fin", r:[{t:"Empresa:", b:true}, {t:" K&T CODE"}]});
-  if (ct.tel && ct.tel.trim()) s.push({k:"N", g:"fin", r:[{t:"Teléfono / WhatsApp:", b:true}, {t:" " + ct.tel.trim()}]});
-  if (ct.correo && ct.correo.trim()) s.push({k:"N", g:"fin", r:[{t:"Correo:", b:true}, {t:" " + ct.correo.trim()}]});
-  if (ct.web && ct.web.trim()) s.push({k:"N", g:"fin", r:[{t:"Sitio web:", b:true}, {t:" " + ct.web.trim()}]});
+  // Contacto al final: solo los datos, centrados, sin título ni etiquetas
+  const url = v => { v = String(v || "").trim(); return !v ? "" : /^https?:\/\//i.test(v) ? v : "https://" + v; };
+  s.push({k:"C", g:"fin", r:[{t:"K&T CODE"}]});
+  if (ct.tel && ct.tel.trim()) s.push({k:"C", g:"fin", r:[{t:ct.tel.trim()}]});
+  if (ct.correo && ct.correo.trim()) s.push({k:"C", g:"fin", r:[{t:ct.correo.trim()}]});
+  if (ct.web && ct.web.trim()) s.push({k:"C", g:"fin", r:[{t:ct.web.trim(), u:url(ct.web)}]});
   return s;
 }
 
@@ -559,7 +560,10 @@ const PPR = {
   H: `<w:pPr><w:widowControl/><w:autoSpaceDE/><w:autoSpaceDN/><w:spacing w:before="0" w:after="100" w:afterAutospacing="1"/><w:outlineLvl w:val="2"/>${RPR(true)}</w:pPr>`,
   B: n => `<w:pPr><w:widowControl/><w:numPr><w:ilvl w:val="0"/><w:numId w:val="${n}"/></w:numPr><w:autoSpaceDE/><w:autoSpaceDN/><w:spacing w:before="0" w:after="100" w:afterAutospacing="1"/>${RPR()}</w:pPr>`
 };
-const run = r => `<w:r>${RPR(r.b, r.i)}<w:t xml:space="preserve">${escX(r.t)}</w:t></w:r>`;
+const run = r => {
+  const x = `<w:r>${RPR(r.b, r.i)}<w:t xml:space="preserve">${escX(r.t)}</w:t></w:r>`;
+  return r.u ? `<w:fldSimple w:instr="${escH(' HYPERLINK "' + r.u + '" ')}">${x}</w:fldSimple>` : x;
+};
 function para(p){
   if (p.k === "E") return `<w:p>${PPR.N}</w:p>`;
   let ppr = p.k === "B" ? PPR.B(p.n) : PPR[p.k];
@@ -607,7 +611,7 @@ async function makeDocx(d){
 }
 
 /* ---------- Vista previa paginada ---------- */
-const span = r => r.b && r.i ? `<strong><em>${escH(r.t)}</em></strong>` : r.b ? `<strong>${escH(r.t)}</strong>` : r.i ? `<em>${escH(r.t)}</em>` : escH(r.t);
+const span = r => r.u ? `<a href="${escH(r.u)}" data-url="${escH(r.u)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">${escH(r.t)}</a>` : r.b && r.i ? `<strong><em>${escH(r.t)}</em></strong>` : r.b ? `<strong>${escH(r.t)}</strong>` : r.i ? `<em>${escH(r.t)}</em>` : escH(r.t);
 function htmlPara(p){
   const inner = (p.r || []).map(span).join("");
   const cls = {N:"p", C:"p c", H:"p h", B:"p b", W:"p web", WC:"p web c"}[p.k] || "p";
@@ -1094,6 +1098,8 @@ async function makePdf(d = D){
     const c = await html2canvas(sheets[k], {scale: esMovil() ? 2 : 2.5, backgroundColor:"#FFFFFF", logging:false});
     if (k) pdf.addPage("letter");
     pdf.addImage(c.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, 612, 792);
+    const o = sheets[k].getBoundingClientRect(), f = 612 / o.width;
+    sheets[k].querySelectorAll("a[data-url]").forEach(a => { const r = a.getBoundingClientRect(); pdf.link((r.left - o.left) * f, (r.top - o.top) * f, r.width * f, r.height * f, {url: a.dataset.url}); });
   }
   off.innerHTML = "";
   return pdf.output("blob");
