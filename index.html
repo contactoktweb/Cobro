@@ -105,6 +105,8 @@ details.card[open] > summary::after{content:"–"}
 .status a{color:inherit;font-weight:600}
 .confirm{display:flex;flex-direction:column;gap:8px;font-size:14px;padding:10px;border:1px solid var(--err);border-radius:10px;grid-column:1 / -1}
 button.danger{color:var(--err);border-color:var(--err)}
+.tipo{display:flex;flex-direction:column;gap:8px;padding:12px;border:2px solid var(--ink);border-radius:10px}
+.tipo p{margin:0}
 .fields.two2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px}
 /* Celular: primero la frase, luego la hoja; los botones de descarga quedan fijos abajo */
 @media (max-width:900px){
@@ -131,19 +133,24 @@ button.danger{color:var(--err);border-color:var(--err)}
 <div class="wrap">
   <header class="top">
     <div class="mark" aria-hidden="true"><span class="dots"><i></i><i></i><i></i></span><b>K&amp;T</b></div>
-    <div><h1>Cuentas de cobro</h1><p>Escribe en una frase lo que necesitas y descarga la cuenta con tu plantilla y tu firma.</p></div>
+    <div><h1>Cotizaciones y cuentas de cobro</h1><p>Escribe en una frase lo que necesitas, elige si es cotización o cuenta de cobro y descarga el documento con tu plantilla y tu firma.</p></div>
   </header>
 
   <div class="grid">
     <div class="col">
       <section class="card" id="cardInd" aria-labelledby="t-ind">
-        <h2 id="t-ind">¿Qué cuenta de cobro hago?</h2>
-        <textarea id="ind" placeholder="Cuenta de cobro para Millan Experiences, cédula 1090514166, valor 200mil, por concepto de desarrollo web"></textarea>
-        <p class="hint">También puedes pegar una cotización completa y agregar al final qué cobras, por ejemplo: «es el anticipo del 50%».</p>
+        <h2 id="t-ind">¿Qué documento hago?</h2>
+        <textarea id="ind" placeholder="Cuenta de cobro: para Millan Experiences, cédula 1090514166, valor 200mil, por concepto de desarrollo web&#10;Cotización: para Café Aroma, sitio web de 5 secciones con formulario y SEO, valor 1.200.000, entrega en 3 semanas"></textarea>
+        <p class="hint">Al tocar «Generar» te pregunto si es cotización o cuenta de cobro. También puedes pegar una cotización completa y agregar al final qué cobras, por ejemplo: «es el anticipo del 50%».</p>
         <div class="row">
-          <button class="primary big" id="btnNew">Crear cuenta de cobro</button>
-          <button id="btnFix" title="Aplica la frase a la cuenta que estás viendo">Corregir la actual</button>
+          <button class="primary big" id="btnNew">Generar</button>
+          <button id="btnFix" title="Aplica la frase al documento que estás viendo">Corregir el actual</button>
           <button class="link" id="btnStop" hidden>Detener</button>
+        </div>
+        <div class="tipo" id="tipoBox" role="group" aria-label="Tipo de documento" hidden>
+          <p><strong>¿Qué documento quieres generar?</strong></p>
+          <div class="row"><button class="primary" id="btnCot">Cotización</button><button class="primary" id="btnCobro">Cuenta de cobro</button><button class="link" id="btnTipoNo">Cancelar</button></div>
+          <p class="hint">Así la IA sabe qué estructura usar antes de leer tu texto.</p>
         </div>
         <p class="mode" id="mode"></p>
         <p class="status" id="stGen" role="status"></p>
@@ -190,20 +197,26 @@ button.danger{color:var(--err);border-color:var(--err)}
         <p class="hint">Escribe **entre dos asteriscos** lo que va en negrilla, como en la plantilla.</p>
         <label class="f">Fecha<input type="text" id="f_fecha"></label>
         <label class="f">Razón social / proyecto (cliente)<input type="text" id="f_cliente"></label>
+        <label class="f solo-cot">Nombre de la cotización<input type="text" id="f_proyecto" placeholder="Ej. Sitio web corporativo"></label>
         <label class="f">NIT / CC del cliente (opcional)<input type="text" id="f_nit"></label>
-        <label class="f">1. Concepto de los servicios<textarea id="f_concepto" rows="5"></textarea></label>
+        <label class="f solo-cobro">1. Concepto de los servicios<textarea id="f_concepto" rows="5"></textarea></label>
         <label class="f">Texto antes de la lista (opcional)<textarea id="f_intro" rows="2"></textarea></label>
-        <div class="f"><span>Lista del alcance (opcional)</span><div class="list" id="l_items"></div><div><button class="small" id="addItem">Agregar ítem</button></div></div>
+        <div class="f"><span>Lista del alcance <span class="solo-cot">del proyecto </span>(opcional)</span><div class="list" id="l_items"></div><div><button class="small" id="addItem">Agregar ítem</button></div></div>
         <label class="f">Texto después de la lista (opcional)<textarea id="f_cierre" rows="3"></textarea></label>
-        <div class="f"><span>2. Desglose de valores</span><div class="list" id="l_vals"></div><div><button class="small" id="addVal">Agregar valor</button></div></div>
+        <div class="f"><span id="t_vals">2. Desglose de valores</span><div class="list" id="l_vals"></div><div><button class="small" id="addVal">Agregar valor</button></div></div>
         <div class="row">
-          <label class="f" style="flex:1 1 150px">LA SUMA DE (valor a cobrar)<input type="number" id="f_suma" inputmode="decimal" min="0" step="any"></label>
+          <label class="f" style="flex:1 1 150px"><span id="t_suma">LA SUMA DE (valor a cobrar)</span><input type="number" id="f_suma" inputmode="decimal" min="0" step="any"></label>
           <label class="f" style="flex:0 1 150px">Moneda<select id="f_moneda"><option value="COP">Pesos (COP)</option><option value="USD">Dólares (USD)</option></select></label>
         </div>
         <p class="letters" id="letras"></p>
-        <label class="f">3. Método de pago<input type="text" id="f_metodo" placeholder="Transferencia bancaria."></label>
+        <label class="f"><span id="t_metodo">3. Método de pago</span><input type="text" id="f_metodo" placeholder="Transferencia bancaria."></label>
         <div class="f"><span>Cuentas para pagar</span><div class="list" id="l_pago"></div>
           <div class="row"><button class="small" id="addPago">Agregar cuenta</button><button class="small link" id="resetPago">Usar Bancolombia y Nequi</button></div></div>
+        <label class="f solo-cot">Condiciones de pago (anticipo, cuotas…)<textarea id="f_condpago" rows="2"></textarea></label>
+        <label class="f solo-cot">Tiempo de ejecución<textarea id="f_tiempo" rows="2" placeholder="Ej. 3 semanas desde el anticipo y la entrega de contenidos."></textarea></label>
+        <label class="f solo-cot">Garantía<textarea id="f_garantia" rows="3"></textarea></label>
+        <div class="f solo-cot"><span>Información de contacto (va al final)</span>
+          <div class="list"><input type="text" id="c_tel" placeholder="Teléfono / WhatsApp"><input type="text" id="c_correo" placeholder="Correo"><input type="text" id="c_web" placeholder="Sitio web"></div></div>
       </details>
 
       <section class="card" id="cardHist" aria-labelledby="t-hist">
@@ -239,6 +252,9 @@ const PAGO_DEF = {metodo: "Transferencia bancaria.", cuentas: [
   {titulo: "Bancolombia Ahorros", detalle: "91290318578"},
   {titulo: "Nequi", detalle: "3133087069"}
 ]};
+const GARANTIA_DEF = "Garantía de 30 días calendario contados desde la entrega del proyecto, que cubre la corrección de errores de funcionamiento atribuibles al desarrollo realizado. No incluye nuevas funcionalidades, cambios de alcance ni fallas causadas por terceros o por manipulación del sitio por parte del cliente.";
+const COND_DEF = "50% de anticipo para iniciar el proyecto y 50% restante contra entrega.";
+const CONTACTO_DEF = {tel: "3133087069", correo: "contacto@kytcode.lat", web: "kytcode.lat"};
 const EJEMPLO = {
   fecha: "21 de agosto de 2026",
   cliente: "Millan Experiences",
@@ -259,6 +275,31 @@ const EJEMPLO = {
     {etiqueta: "Saldo pendiente a pagar (100% final)", monto: 350000, nota: "", destacado: true}
   ],
   suma: 350000
+};
+
+const EJEMPLO_COT = {
+  fecha: "22 de octubre de 2026",
+  proyecto: "Sitio web corporativo",
+  cliente: "Café Aroma",
+  nit: "",
+  intro: "El proyecto incluye el diseño y desarrollo de un sitio web con las siguientes secciones:",
+  items: [
+    {titulo: "Páginas principales", detalle: "Inicio, Nosotros, Menú, Galería y Contacto"},
+    {titulo: "Formulario de contacto", detalle: "con envío de mensajes al correo del negocio"},
+    {titulo: "SEO técnico", detalle: "etiquetas, metadatos y velocidad de carga optimizada"}
+  ],
+  cierre: "El sitio se entrega publicado en la infraestructura de Vercel y adaptado a celulares y computadores.",
+  moneda: "COP",
+  valores: [
+    {etiqueta: "Diseño y desarrollo del sitio web", monto: 1000000, nota: "", destacado: false},
+    {etiqueta: "Dominio y hosting (primer año)", monto: 200000, nota: "", destacado: false},
+    {etiqueta: "Valor total del proyecto", monto: 1200000, nota: "", destacado: true}
+  ],
+  suma: 1200000,
+  tiempo: "3 semanas contadas desde el pago del anticipo y la entrega de los contenidos.",
+  garantia: GARANTIA_DEF,
+  condPago: COND_DEF,
+  pago: PAGO_DEF
 };
 
 /* ---------- Utilidades ---------- */
@@ -426,6 +467,18 @@ function parseLocal(ind, base){
   if (!d.cliente) faltan.push("No encontré el nombre del cliente. Escribe «para …» o ponlo en «Ajustar datos a mano».");
   if (!d.suma) faltan.push("No encontré el valor. Escribe por ejemplo «valor 200mil».");
   if (!concepto && !base) faltan.push("No encontré el concepto; puse «servicios profesionales». Escribe «por concepto de …».");
+  return {d, faltan, concepto};
+}
+function parseLocalCot(ind, base){
+  const r = parseLocal(ind, null);
+  const faltan = r.faltan.filter(f => !/concepto/i.test(f));
+  const total = (r.d.valores[0] && r.d.valores[0].monto) || r.d.suma || 0;
+  const proy = r.concepto ? r.concepto.charAt(0).toUpperCase() + r.concepto.slice(1) : "";
+  const nuevo = {tipo:"cotizacion", fecha:r.d.fecha, cliente:r.d.cliente, nit:r.d.nit, moneda:r.d.moneda, pago:r.d.pago, proyecto:proy,
+    valores: total ? [{etiqueta:"Valor total del proyecto", monto:total, nota:"", destacado:true}] : [], suma: total};
+  const d = base ? Object.assign(clone(base), Object.fromEntries(Object.entries(nuevo).filter(([k, v]) => v && !(Array.isArray(v) && !v.length)))) : nuevo;
+  if (!proy && !(base && base.proyecto)) faltan.push("No encontré el nombre de la cotización. Escribe «por concepto de …» o ponlo en «Ajustar datos a mano».");
+  if (!base) faltan.push("Sin IA no armo el alcance ni el tiempo de ejecución: llénalos en «Ajustar datos a mano» o activa Groq.");
   return {d, faltan};
 }
 
@@ -456,6 +509,48 @@ function variable(d){
   return s;
 }
 
+/* Cotización: alcance, inversión, tiempo, garantía, pago, cuentas y contacto al final */
+function variableCot(d){
+  const s = []; let n = 0;
+  const H = (t, g) => s.push({k:"H", g, r:[{t:`${++n}. ${t}`, b:true}]});
+  H("Alcance del Proyecto");
+  if (d.intro && d.intro.trim()) s.push({k:"N", r:rich(d.intro)});
+  const items = (d.items || []).filter(i => (i.titulo || i.detalle));
+  items.forEach(i => s.push({k:"B", n:6, r:[...(i.titulo ? [{t:i.titulo.replace(/:\s*$/,"") + ":", b:true}] : []), ...rich((i.titulo ? " " : "") + (i.detalle || ""))]}));
+  if (d.cierre && d.cierre.trim()) s.push({k:"N", r:rich(d.cierre)});
+  s.push({k:"E"});
+  H("Inversión");
+  (d.valores || []).filter(v => v.etiqueta || v.monto).forEach(v => {
+    const r = [{t:String(v.etiqueta || "").replace(/:\s*$/,"") + ":", b:true}];
+    const val = (v.monto === null || v.monto === "" || v.monto === undefined) ? "" : valor(v.monto, d.moneda);
+    if (v.destacado) { r.push({t:" "}); r.push({t:val, b:true}); }
+    else r.push({t:" " + val + (nota(v.nota) ? " " : "")});
+    if (nota(v.nota)) r.push({t:nota(v.nota), i:true});
+    s.push({k:"B", n:7, r});
+  });
+  s.push({k:"N", r:[{t:"VALOR TOTAL DE LA INVERSIÓN:", b:true}]});
+  s.push({k:"N", r:[{t:sumaTxt(d)}]});
+  s.push({k:"E"});
+  if (d.tiempo && d.tiempo.trim()) { H("Tiempo de Ejecución"); s.push({k:"N", r:rich(d.tiempo)}); s.push({k:"E"}); }
+  if (d.garantia && d.garantia.trim()) { H("Garantía"); s.push({k:"N", r:rich(d.garantia)}); s.push({k:"E"}); }
+  H("Métodos de Pago", "pago");
+  if (d.condPago && d.condPago.trim()) s.push({k:"N", g:"pago", r:rich(d.condPago)});
+  const pg = d.pago || PAGO_DEF, cuentas = (pg.cuentas || []).filter(c => c.titulo || c.detalle);
+  s.push({k:"N", g:"pago", r:[{t:"Método de pago:", b:true}, {t:" " + (pg.metodo || PAGO_DEF.metodo)}]});
+  if (cuentas.length) {
+    s.push({k:"N", g:"pago", r:[{t:"Cuentas para consignar:", b:true}]});
+    cuentas.forEach(c => s.push({k:"B", n:8, g:"pago", r: c.titulo ? [{t:c.titulo.replace(/:\s*$/, "") + ":", b:true}, {t:" " + (c.detalle || "")}] : [{t:c.detalle}]}));
+  }
+  s.push({k:"E"});
+  const ct = d.contacto || CONTACTO_DEF;
+  H("Información de Contacto", "fin");
+  s.push({k:"N", g:"fin", r:[{t:"Nombre:", b:true}, {t:" Keyner Steban Trillos Useche (K&T CODE)"}]});
+  if (ct.tel && ct.tel.trim()) s.push({k:"N", g:"fin", r:[{t:"Teléfono / WhatsApp:", b:true}, {t:" " + ct.tel.trim()}]});
+  if (ct.correo && ct.correo.trim()) s.push({k:"N", g:"fin", r:[{t:"Correo:", b:true}, {t:" " + ct.correo.trim()}]});
+  if (ct.web && ct.web.trim()) s.push({k:"N", g:"fin", r:[{t:"Sitio web:", b:true}, {t:" " + ct.web.trim()}]});
+  return s;
+}
+
 /* ---------- Word: tu plantilla original, solo cambian los datos ---------- */
 const RPR = (b,i) => `<w:rPr><w:rFonts w:eastAsia="Times New Roman" w:cs="Arial"/>${b?"<w:b/><w:bCs/>":""}${i?"<w:i/><w:iCs/>":""}<w:color w:val="000000"/><w:lang w:val="es-CO" w:eastAsia="es-MX"/></w:rPr>`;
 const PPR = {
@@ -479,15 +574,28 @@ function pagoSeq(d){
     ...cuentas.map(c => ({k:"B", n:8, keep:true, r: c.titulo ? [{t:c.titulo.replace(/:\s*$/, "") + ":", b:true}, {t:" " + (c.detalle || "")}] : [{t:c.detalle}]}))
   ];
 }
+function quitarPar(xml, needle){
+  const i = xml.indexOf(needle); if (i < 0) return xml;
+  const a = xml.lastIndexOf("<w:p ", i), b = xml.indexOf("</w:p>", i);
+  return a < 0 || b < 0 ? xml : xml.slice(0, a) + xml.slice(b + 6);
+}
 async function makeDocx(d){
   const zip = await JSZip.loadAsync(A.docx, {base64:true});
   let xml = await zip.file("word/document.xml").async("string");
+  const cot = d.tipo === "cotizacion";
+  if (cot) {
+    // La cotización usa la misma hoja (encabezado, pie, firma) pero sin la nota legal ni la sección de pago fija de la cuenta de cobro.
+    xml = xml.replace("<w:t>CUENTA DE COBRO</w:t>", () => "<w:t>COTIZACIÓN</w:t>");
+    xml = quitarPar(xml, "3. Forma de Pago");
+    xml = quitarPar(xml, "Nota: Declaro bajo");
+  }
   const receptor = para({k:"N", r:[{t:"Razón Social / Proyecto:", b:true}, {t:" " + (d.cliente || "")}]}) +
-    (d.nit && d.nit.trim() ? para({k:"N", r:[{t:"NIT / CC:", b:true}, {t:" " + d.nit.trim()}]}) : "");
-  xml = xml.replace("{{FECHA}}", escX(d.fecha || hoy()))
-           .replace("{{RECEPTOR}}", receptor)
-           .replace("{{CUERPO}}", variable(d).map(para).join(""))
-           .replace("{{PAGO}}", pagoSeq(d).map(para).join(""));
+    (d.nit && d.nit.trim() ? para({k:"N", r:[{t:"NIT / CC:", b:true}, {t:" " + d.nit.trim()}]}) : "") +
+    (cot && d.proyecto && d.proyecto.trim() ? para({k:"N", r:[{t:"Nombre de la cotización:", b:true}, {t:" " + d.proyecto.trim()}]}) : "");
+  xml = xml.replace("{{FECHA}}", () => escX(d.fecha || hoy()))
+           .replace("{{RECEPTOR}}", () => receptor)
+           .replace("{{CUERPO}}", () => (cot ? variableCot(d) : variable(d)).map(para).join(""))
+           .replace("{{PAGO}}", () => cot ? "" : pagoSeq(d).map(para).join(""));
   zip.file("word/document.xml", xml);
   return zip.generateAsync({type:"blob", mimeType:"application/vnd.openxmlformats-officedocument.wordprocessingml.document", compression:"DEFLATE"});
 }
@@ -503,8 +611,9 @@ function htmlPara(p){
   return `<p class="${cls}">${inner || "&nbsp;"}</p>`;
 }
 function fullSequence(d){
+  const cot = d.tipo === "cotizacion";
   const top = [
-    {k:"C", r:[{t:"CUENTA DE COBRO", b:true}]}, {k:"E"},
+    {k:"C", r:[{t:cot ? "COTIZACIÓN" : "CUENTA DE COBRO", b:true}]}, {k:"E"},
     {k:"C", r:[{t:d.fecha || hoy()}]}, {k:"E"},
     {k:"N", r:[{t:"EMISOR (Prestador del servicio):", b:true}]},
     {k:"N", r:[{t:"Nombre:", b:true}, {t:" Keyner Steban Trillos Useche"}]},
@@ -512,8 +621,17 @@ function fullSequence(d){
     {k:"N", r:[{t:"RECEPTOR (Cliente):", b:true}]},
     {k:"N", r:[{t:"Razón Social / Proyecto:", b:true}, {t:" " + (d.cliente || "")}]},
     ...(d.nit && d.nit.trim() ? [{k:"N", r:[{t:"NIT / CC:", b:true}, {t:" " + d.nit.trim()}]}] : []),
+    ...(cot && d.proyecto && d.proyecto.trim() ? [{k:"N", r:[{t:"Nombre de la cotización:", b:true}, {t:" " + d.proyecto.trim()}]}] : []),
     {k:"BR"}
   ];
+  const firma = [
+    {k:"SIG"},
+    {k:"WC", r:[{t:"__________________________________", i:true}]},
+    {k:"WC", r:[{t:"Keyner Steban Trillos Useche", b:true}]},
+    {k:"WC", r:[{t:"RUT:", b:true}, {t:" 1090384736-8"}]},
+    {k:"WC", r:[{t:"K&T CODE", b:true}]}
+  ];
+  if (cot) { const fin = [{k:"E"}, ...firma]; fin.forEach(p => p.g = "fin"); return [...top, ...variableCot(d), ...fin]; }
   const bottom = [
     {k:"BR"},
     {k:"H", r:[{t:"3. Forma de Pago", b:true}]},
@@ -564,7 +682,12 @@ function normalize(d){
   o.valores = Array.isArray(o.valores) ? o.valores.map(v => ({etiqueta:String(v?.etiqueta ?? ""), monto: v?.monto === null || v?.monto === "" || v?.monto === undefined ? null : redondear(String(v.monto).replace(/[^\d.-]/g,"")), nota:String(v?.nota ?? ""), destacado:!!v?.destacado})) : [];
   o.suma = redondear(String(o.suma ?? 0).replace(/[^\d.-]/g,""));
   o.moneda = /usd|d[oó]lar/i.test(String(o.moneda || "")) ? "USD" : "COP";
-  ["fecha","cliente","nit","concepto","intro","cierre"].forEach(k => o[k] = String(o[k] ?? ""));
+  ["fecha","cliente","nit","concepto","intro","cierre","proyecto","tiempo"].forEach(k => o[k] = String(o[k] ?? ""));
+  o.tipo = d && d.tipo === "cotizacion" ? "cotizacion" : "cobro";
+  o.garantia = String(o.garantia ?? "").trim() || GARANTIA_DEF;
+  o.condPago = String(o.condPago ?? "").trim() || COND_DEF;
+  const ct = o.contacto && typeof o.contacto === "object" ? o.contacto : {};
+  o.contacto = {tel:String(ct.tel ?? CONTACTO_DEF.tel), correo:String(ct.correo ?? CONTACTO_DEF.correo), web:String(ct.web ?? CONTACTO_DEF.web)};
   if (!o.fecha.trim()) o.fecha = hoy();
   const pg = o.pago && typeof o.pago === "object" ? o.pago : null;
   o.pago = pg ? {
@@ -573,7 +696,19 @@ function normalize(d){
   } : clone(PAGO_DEF);
   return o;
 }
+function applyTipoUI(){
+  const cot = D.tipo === "cotizacion";
+  document.querySelectorAll(".solo-cot").forEach(e => e.hidden = !cot);
+  document.querySelectorAll(".solo-cobro").forEach(e => e.hidden = cot);
+  $("t_vals").textContent = cot ? "Inversión (desglose de valores)" : "2. Desglose de valores";
+  $("t_suma").textContent = cot ? "VALOR TOTAL (inversión)" : "LA SUMA DE (valor a cobrar)";
+  $("t_metodo").textContent = cot ? "Método de pago" : "3. Método de pago";
+  $("tag").textContent = "Ejemplo de tu plantilla";
+}
 function fillForm(){
+  applyTipoUI();
+  $("f_proyecto").value = D.proyecto; $("f_tiempo").value = D.tiempo; $("f_garantia").value = D.garantia; $("f_condpago").value = D.condPago;
+  $("c_tel").value = D.contacto.tel; $("c_correo").value = D.contacto.correo; $("c_web").value = D.contacto.web;
   $("f_fecha").value = D.fecha; $("f_cliente").value = D.cliente; $("f_nit").value = D.nit;
   $("f_concepto").value = D.concepto; $("f_intro").value = D.intro; $("f_cierre").value = D.cierre;
   $("f_suma").value = D.suma || ""; $("f_moneda").value = D.moneda;
@@ -607,7 +742,8 @@ function refresh(){
   store.set("kt_cuenta", {D, docId, isExample});
 }
 function bindForm(){
-  const map = {f_fecha:"fecha", f_cliente:"cliente", f_nit:"nit", f_concepto:"concepto", f_intro:"intro", f_cierre:"cierre"};
+  const map = {f_fecha:"fecha", f_cliente:"cliente", f_nit:"nit", f_concepto:"concepto", f_intro:"intro", f_cierre:"cierre", f_proyecto:"proyecto", f_tiempo:"tiempo", f_garantia:"garantia", f_condpago:"condPago"};
+  ["tel","correo","web"].forEach(k => $("c_" + k).addEventListener("input", e => { D.contacto[k] = e.target.value; isExample = false; refresh(); }));
   Object.entries(map).forEach(([id, k]) => $(id).addEventListener("input", e => { D[k] = e.target.value; isExample = false; refresh(); }));
   $("f_suma").addEventListener("input", e => { D.suma = redondear(e.target.value); isExample = false; refresh(); });
   $("f_moneda").addEventListener("input", e => { D.moneda = e.target.value; isExample = false; refresh(); });
@@ -724,6 +860,54 @@ ${JSON.stringify(borrador)}
 Indicación:
 ${ind}`;
 }
+const FORMA_COT = `{
+  "fecha": "texto, ej. \\"22 de octubre de 2026\\"",
+  "proyecto": "nombre de la cotización o del proyecto, corto",
+  "cliente": "razón social o nombre del cliente",
+  "nit": "solo el número de cédula o NIT del cliente si se indica; si no, \\"\\"",
+  "intro": "frase que presenta el alcance o \\"\\"",
+  "items": [{"titulo": "título corto sin dos puntos", "detalle": "detalle"}],
+  "cierre": "frase opcional después de la lista o \\"\\"",
+  "moneda": "COP o USD",
+  "valores": [{"etiqueta": "sin dos puntos", "monto": 0, "nota": "texto en cursiva o \\"\\"", "destacado": false}],
+  "suma": 0,
+  "tiempo": "tiempo de ejecución, ej. \\"3 semanas desde el pago del anticipo\\"",
+  "garantia": "texto de la garantía",
+  "condPago": "condiciones de pago (anticipo, cuotas, contra entrega)",
+  "pago": {"metodo": "texto de «Método de pago»", "cuentas": [{"titulo": "medio o banco sin dos puntos", "detalle": "número, correo o dato"}]},
+  "faltantes": ["dato que faltó o supuesto que hiciste"]
+}`;
+function promptCot(ind, borrador){
+  return `Eres el asistente comercial de K&T CODE (Keyner Steban Trillos Useche, desarrollador web en Colombia). Preparas los datos de una COTIZACIÓN que se ponen en una plantilla fija. NO es una cuenta de cobro: no hables de "cuenta de cobro", no pongas nota legal ni firma. El emisor, los datos de contacto y la firma ya están en la plantilla: nunca los incluyas.
+
+Responde SOLO con un objeto JSON con esta forma:
+${FORMA_COT}
+
+La estructura final de la cotización es: nombre de la cotización y cliente, 1. Alcance del proyecto, 2. Inversión, 3. Tiempo de ejecución, 4. Garantía, 5. Métodos de pago y cuentas para consignar, 6. Información de contacto. Tú solo llenas los campos del JSON.
+
+Reglas:
+- "proyecto": el nombre de la cotización (ej. "Sitio web corporativo", "Tienda en línea", "Mantenimiento mensual"). Si la indicación no lo da, dedúcelo del servicio principal.
+- "cliente": a quién va dirigida. Si hay un dominio, inclúyelo así: "AutoSaldo (autosaldo.com)". "nit": solo si se da la cédula o el NIT del cliente (nunca el RUT 1090384736-8).
+- "intro", "items", "cierre": el ALCANCE del proyecto. Cada entregable o módulo principal es un ítem: "titulo" corto y "detalle" de máximo 35 palabras. Redacta en futuro o presente como propuesta ("incluye", "se entrega"). Si la indicación es corta, usa 2-5 ítems sencillos basados en lo que dijo; no inventes funciones que no se mencionaron ni datos del cliente.
+- "valores": cada línea de precio que se haya dado, y al final el total con "destacado": true. Si solo hay un precio: [{"etiqueta":"Valor total del proyecto","monto":X,"nota":"","destacado":true}]. "suma" es el total (igual al último valor). Montos como números (200mil = 200000, 1.5 millones = 1500000, $75 USD = 75). No inventes cifras; si no hay valor, "suma": 0 y avísalo en "faltantes". "moneda": "USD" si los valores están en dólares; si no, "COP".
+- "tiempo": el tiempo de ejecución indicado. Si no lo dan, déjalo "" y avísalo en "faltantes".
+- "garantia": si la indicación no dice otra cosa, usa exactamente: ${JSON.stringify(GARANTIA_DEF)}. Si dice otro plazo, ajusta el texto a ese plazo.
+- "condPago": si no dice otra cosa, usa exactamente: ${JSON.stringify(COND_DEF)}. Si hay otros porcentajes o cuotas, redáctalo así. Anota el supuesto en "faltantes" si usaste el valor por defecto.
+- "pago": si la indicación NO dice cómo se paga, usa exactamente: {"metodo":"Transferencia bancaria.","cuentas":[{"titulo":"Bancolombia Ahorros","detalle":"91290318578"},{"titulo":"Nequi","detalle":"3133087069"}]}. Si dice por dónde se paga, usa SOLO eso (por ejemplo "solo Nequi" → {"metodo":"Transferencia por Nequi.","cuentas":[{"titulo":"Nequi","detalle":"3133087069"}]}). NUNCA inventes números, correos ni enlaces: si piden otro medio sin dar el dato, pon la cuenta con "detalle": "" y avísalo en "faltantes".
+- Español de Colombia, tono formal y comercial. "fecha": la de hoy (${hoy()}) salvo que la indicación pida otra.
+- Si la indicación es un documento pegado (otra cotización, propuesta, lista de requerimientos), extrae la información por su significado y reescríbela con esta estructura; ignora los datos del emisor (Keyner Steban Trillos Useche, RUT, K&T CODE).
+- En "faltantes" pon lo que faltó y los supuestos que hiciste, en frases cortas; si no hay ninguno, [].
+
+Ejemplo de una cotización:
+${JSON.stringify(EJEMPLO_COT)}
+${borrador ? `
+Cotización actual (borrador). Aplica SOLO los cambios pedidos y conserva lo demás:
+${JSON.stringify(borrador)}
+` : ""}
+Indicación:
+${ind}`;
+}
+const armarPrompt = (tipo, ind, borrador) => tipo === "cotizacion" ? promptCot(ind, borrador) : prompt(ind, borrador);
 function sacarJSON(txt){
   txt = String(txt || "").trim();
   try { return JSON.parse(txt); } catch(e) {}
@@ -810,19 +994,27 @@ async function llm1(messages){
 }
 
 /* ---------- Generar ---------- */
-async function generar(fix){
+function preguntarTipo(){
+  const ind = $("ind").value.trim();
+  if (!ind) { setSt("stGen", "Escribe primero la frase: cliente, valor y de qué trata.", "err"); $("ind").focus(); return; }
+  setSt("stGen", ""); $("tipoBox").hidden = false; $("btnCot").focus();
+}
+async function generar(fix, tipoSel){
   const ind = $("ind").value.trim();
   if (!ind) { setSt("stGen", "Escribe primero la frase: cliente, cédula o NIT, valor y concepto.", "err"); $("ind").focus(); return; }
+  $("tipoBox").hidden = true;
+  const tipo = fix ? D.tipo : (tipoSel === "cotizacion" ? "cotizacion" : "cobro");
+  const cot = tipo === "cotizacion", doc = cot ? "Cotización" : "Cuenta de cobro";
   const base = fix && !isExample ? D : null;
   let faltan = [], aviso = "";
   if (AJ.prov !== "local") {
     busy(true); setSt("stGen", "Pensando… (unos segundos)");
     try {
-      const res = await llm([{role:"system", content:"Respondes únicamente con JSON válido."}, {role:"user", content:prompt(ind, base)}]);
+      const res = await llm([{role:"system", content:"Respondes únicamente con JSON válido."}, {role:"user", content:armarPrompt(tipo, ind, base)}]);
       if (!res || typeof res !== "object" || Array.isArray(res)) throw new Error("La IA no respondió en el formato esperado.");
       faltan = Array.isArray(res.faltantes) ? res.faltantes.filter(Boolean).map(String) : [];
-      D = normalize(res);
-      const loc = parseLocal(ind, null).d;  // respaldo si la IA dejó vacíos
+      D = normalize({...res, tipo});
+      const loc = (cot ? parseLocalCot(ind, null) : parseLocal(ind, null)).d;  // respaldo si la IA dejó vacíos
       if (!D.suma && loc.suma) { D.suma = loc.suma; if (!D.valores.length) D.valores = loc.valores; }
       if (!D.cliente && loc.cliente) D.cliente = loc.cliente;
       if (!D.nit && loc.nit) D.nit = loc.nit;
@@ -831,26 +1023,28 @@ async function generar(fix){
       if (e.name === "AbortError") { setSt("stGen", "Detenido."); return; }
       aviso = e.sinIA ? "" : e.message + " Usé el modo sin IA.";
       pintarAjustes();
-      const r = parseLocal(ind, base); D = normalize(r.d); faltan = r.faltan;
+      const r = cot ? parseLocalCot(ind, base) : parseLocal(ind, base); D = normalize({...r.d, tipo}); faltan = r.faltan;
     }
     busy(false);
   } else {
-    const r = parseLocal(ind, base); D = normalize(r.d); faltan = r.faltan;
+    const r = cot ? parseLocalCot(ind, base) : parseLocal(ind, base); D = normalize({...r.d, tipo}); faltan = r.faltan;
   }
   isExample = false;
   if (!fix) docId = null;
   fillForm(); refresh();
   $("miss").hidden = !faltan.length;
   $("miss").innerHTML = faltan.length ? `<strong>Revisa:</strong><ul>${faltan.map(f => `<li>${escH(f)}</li>`).join("")}</ul>` : "";
-  setSt("stGen", aviso || (fix ? "Cuenta corregida. Revisa la hoja y descárgala." : "Cuenta lista. Revisa la hoja y descárgala."), aviso ? "err" : "ok");
+  setSt("stGen", aviso || (fix ? `${doc} corregida. Revisa la hoja y descárgala.` : `${doc} lista. Revisa la hoja y descárgala.`), aviso ? "err" : "ok");
   guardar();
   if (matchMedia("(max-width:900px)").matches) $("stage").scrollIntoView({behavior:"smooth", block:"start"});
 }
-function busy(b){ $("btnNew").disabled = b; $("btnFix").disabled = b; $("btnStop").hidden = !b; }
+function busy(b){ ["btnNew","btnFix","btnCot","btnCobro"].forEach(id => $(id).disabled = b); $("btnStop").hidden = !b; }
 function setSt(id, msg, cls){ const el = $(id); el.textContent = msg; el.className = "status" + (cls ? " " + cls : ""); }
 
 /* ---------- Descargas (Mac: descarga · iPhone: menú Compartir) ---------- */
-const tituloArchivo = d => `CUENTA DE COBRO (${String(d.cliente || "CLIENTE").toUpperCase()} ${valor(d.suma, d.moneda)})`.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim();
+const tituloArchivo = d => (d.tipo === "cotizacion"
+  ? `COTIZACIÓN (${String(d.cliente || "CLIENTE").toUpperCase()}${d.proyecto ? " - " + d.proyecto.toUpperCase() : ""} ${valor(d.suma, d.moneda)})`
+  : `CUENTA DE COBRO (${String(d.cliente || "CLIENTE").toUpperCase()} ${valor(d.suma, d.moneda)})`).replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim();
 const nombre = ext => `${tituloArchivo(D)}.${ext}`;
 const esMovil = () => matchMedia("(pointer:coarse)").matches && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 let listo = null;
@@ -936,7 +1130,7 @@ function avisoDrive(el, nom, url){
   if (url) { const a = document.createElement("a"); a.href = url; a.target = "_blank"; a.rel = "noopener"; a.textContent = "Abrir"; el.appendChild(a); }
 }
 async function subirActual(){
-  if (isExample) { setSt("stDl", "Primero crea una cuenta de cobro; esta es solo el ejemplo.", "err"); return; }
+  if (isExample) { setSt("stDl", "Primero genera un documento; esta hoja es solo el ejemplo.", "err"); return; }
   guardar();
   $("btnDrive").disabled = true; setSt("stDl", "Subiendo el PDF a Google Drive…");
   try { const v = hist().find(x => x.id === docId); const r = await subirDrive(D, idDrive(v)); marcarDrive(docId, r); avisoDrive($("stDl"), r.nombre, r.url); }
@@ -969,10 +1163,10 @@ function guardar(){
 }
 function pintarHist(){
   const h = hist(), el = $("hist");
-  if (!h.length) { el.innerHTML = `<p class="hint">Aún no hay cuentas. Las que generes quedan aquí para volver a descargarlas.</p>`; return; }
-  el.innerHTML = h.map(v => `<div class="hrow"><div><div class="who">${escH(v.cliente || "Sin cliente")}</div><div class="meta">${escH(v.fecha || "")} · ${valor(v.suma, v.datos?.moneda)}</div></div>
+  if (!h.length) { el.innerHTML = `<p class="hint">Aún no hay documentos. Los que generes quedan aquí para volver a descargarlos.</p>`; return; }
+  el.innerHTML = h.map(v => `<div class="hrow"><div><div class="who">${escH(v.cliente || "Sin cliente")}</div><div class="meta">${v.datos?.tipo === "cotizacion" ? "Cotización · " : ""}${escH(v.fecha || "")} · ${valor(v.suma, v.datos?.moneda)}</div></div>
     ${pendingDel === v.id
-      ? `<div class="confirm"><span>¿Borrar esta cuenta${v.driveUrl ? " y su PDF en Google Drive" : ""}? No se puede deshacer desde la app.</span>
+      ? `<div class="confirm"><span>¿Borrar este documento${v.driveUrl ? " y su PDF en Google Drive" : ""}? No se puede deshacer desde la app.</span>
           <div class="row"><button class="small danger" data-del="${v.id}">Sí, borrar</button><button class="small" data-cancel="1">Cancelar</button></div></div>`
       : `<div class="row"><button class="small" data-open="${v.id}">Abrir</button>${v.driveUrl
           ? (enlaceSeguro(v.driveUrl) ? `<a class="small" href="${escH(v.driveUrl)}" target="_blank" rel="noopener">En Drive</a>` : `<span class="hint">En Drive</span>`)
@@ -998,7 +1192,7 @@ function bindHist(){
     if (t.dataset.open) {
       const v = h.find(x => x.id === t.dataset.open); if (!v) return;
       D = normalize(v.datos); docId = v.id; isExample = false; $("miss").hidden = true; fillForm(); refresh();
-      setSt("stGen", `Abriste la cuenta de ${D.cliente}.`, "ok"); window.scrollTo({top:0, behavior:"smooth"});
+      setSt("stGen", `Abriste ${D.tipo === "cotizacion" ? "la cotización" : "la cuenta"} de ${D.cliente}.`, "ok"); window.scrollTo({top:0, behavior:"smooth"});
     } else if (t.dataset.drive) {
       const v = h.find(x => x.id === t.dataset.drive); if (!v) return;
       t.disabled = true; t.textContent = "Subiendo…";
@@ -1016,10 +1210,13 @@ function bindHist(){
   if (s && s.D) { D = normalize(s.D); docId = s.docId || null; isExample = !!s.isExample; }
   fillForm(); bindForm(); bindHist(); bindAjustes(); pintarAjustes(); pintarHist(); refresh();
   new ResizeObserver(fit).observe($("stage"));
-  $("btnNew").onclick = () => generar(false);
+  $("btnNew").onclick = preguntarTipo;
+  $("btnCot").onclick = () => generar(false, "cotizacion");
+  $("btnCobro").onclick = () => generar(false, "cobro");
+  $("btnTipoNo").onclick = () => { $("tipoBox").hidden = true; };
   $("btnFix").onclick = () => generar(true);
   $("btnStop").onclick = () => ctl?.abort();
-  $("ind").addEventListener("keydown", e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) generar(false); });
+  $("ind").addEventListener("keydown", e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) preguntarTipo(); });
   $("btnDocx").onclick = () => entregar("docx", () => makeDocx(D));
   $("btnPdf").onclick = () => entregar("pdf", () => makePdf(D));
   $("btnDrive").onclick = subirActual;
@@ -1031,7 +1228,9 @@ function bindHist(){
   };
   $("btnShare").onclick = () => listo && compartir(listo);
   $("btnReset").onclick = () => {
-    D = normalize({fecha:hoy(), concepto:"Se expide la presente cuenta de cobro por concepto de **pago total** correspondiente al servicio profesional de ", valores:[{etiqueta:"Valor total del servicio", monto:null, destacado:true}], suma:0});
+    D = D.tipo === "cotizacion"
+      ? normalize({tipo:"cotizacion", fecha:hoy(), valores:[{etiqueta:"Valor total del proyecto", monto:null, destacado:true}], suma:0})
+      : normalize({fecha:hoy(), concepto:"Se expide la presente cuenta de cobro por concepto de **pago total** correspondiente al servicio profesional de ", valores:[{etiqueta:"Valor total del servicio", monto:null, destacado:true}], suma:0});
     docId = null; isExample = false; $("miss").hidden = true; fillForm(); refresh(); $("edit").open = true;
     setSt("stGen", "Hoja en blanco. Escribe una frase o llena los datos a mano.");
   };
