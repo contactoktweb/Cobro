@@ -196,9 +196,11 @@ button.danger{color:var(--err);border-color:var(--err)}
         <summary>Ajustar datos a mano</summary>
         <p class="hint">Escribe **entre dos asteriscos** lo que va en negrilla, como en la plantilla.</p>
         <label class="f">Fecha<input type="text" id="f_fecha"></label>
-        <label class="f">Razón social / proyecto (cliente)<input type="text" id="f_cliente"></label>
+        <div class="row"><label class="f" style="flex:0 1 150px">Se muestra como<select id="f_clienteTipo"><option value="Nombre">Nombre</option><option value="Razón social">Razón social</option><option value="Proyecto">Proyecto</option></select></label>
+          <label class="f" style="flex:1 1 200px">Cliente<input type="text" id="f_cliente"></label></div>
         <label class="f solo-cot">Nombre de la cotización<input type="text" id="f_proyecto" placeholder="Ej. Sitio web corporativo"></label>
-        <label class="f">NIT / CC del cliente (opcional)<input type="text" id="f_nit"></label>
+        <div class="row"><label class="f" style="flex:0 1 150px">Documento<select id="f_nitTipo"><option value="CC">CC</option><option value="NIT">NIT</option></select></label>
+          <label class="f" style="flex:1 1 200px">Número del cliente (opcional)<input type="text" id="f_nit"></label></div>
         <label class="f solo-cobro">1. Concepto de los servicios<textarea id="f_concepto" rows="5"></textarea></label>
         <label class="f">Texto antes de la lista (opcional)<textarea id="f_intro" rows="2"></textarea></label>
         <div class="f"><span>Lista del alcance <span class="solo-cot">del proyecto </span>(opcional)</span><div class="list" id="l_items"></div><div><button class="small" id="addItem">Agregar ítem</button></div></div>
@@ -399,15 +401,22 @@ function parseLocal(ind, base){
   let m = t.match(new RegExp("\\b(?:para|a nombre de|cliente:?)\\s+(?!el\\s+servicio)(.+?)" + STOP, "i"));
   if (m) d.cliente = titulo(m[1].replace(/^(?:el|la)\s+(?:cliente|empresa)\s+/i, ""));
   // cédula / NIT
-  m = t.match(/\b(c[eé]dula(?:\s+de\s+ciudadan[ií]a)?|c\.?\s?c\.?|nit|rut)\s*(?:n[oº°.]*|n[uú]mero)?\s*[:#]?\s*([\d][\d.\- ]{4,}[\dkK])/i);
+  // se salta el RUT del emisor (1090384736-8) si viene pegado
+  m = [...t.matchAll(/\b(c[eé]dula(?:\s+de\s+ciudadan[ií]a)?|c\.?\s?c\.?|nit|rut)\s*\)?\s*(?:n[oº°.]*|n[uú]mero)?\s*[:#]?\s*([\d][\d.\- ]{4,}[\dkK])/gi)]
+    .find(x => !x[2].replace(/\D/g, "").startsWith("1090384736"));
   if (m) {
-    const num = m[2].replace(/\s+/g, "");
-    d.nit = num;
+    d.nit = m[2].replace(/\s+/g, "");
+    d.nitTipo = /^(nit|rut)$/i.test(m[1]) ? "NIT" : "CC";
   }
   // cotización pegada: "Proyecto: X" / "Cliente: X", moneda y RUT del emisor
-  const lin = ind.match(/^\s*(?:proyecto|cliente|raz[oó]n social(?:\s*\/\s*proyecto)?|empresa)\s*:\s*(.+)$/im);
-  if (lin) d.cliente = lin[1].trim();
-  if (d.nit && d.nit.replace(/\D/g, "").startsWith("1090384736")) d.nit = base ? base.nit : "";
+  const lin = [...ind.matchAll(/^\s*(proyecto|cliente|nombre|raz[oó]n social(?:\s*\/\s*proyecto)?|empresa)\s*:\s*(.+)$/gim)]
+    .find(x => !/keyner|trillos/i.test(x[2]));
+  if (lin) {
+    d.cliente = lin[2].trim();
+    const k = lin[1].toLowerCase();
+    d.clienteTipo = k === "nombre" ? "Nombre" : k === "proyecto" ? "Proyecto" : /raz|empresa/.test(k) && !/proyecto/.test(k) ? "Razón social" : "";
+  }
+  if (d.nit && d.nit.replace(/\D/g, "").startsWith("1090384736")) { d.nit = base ? base.nit : ""; d.nitTipo = base ? base.nitTipo : ""; }
   if (/\b(usd|us\$|d[oó]lar(es)?)\b/i.test(t)) d.moneda = "USD";
   // porcentaje
   const pm = t.match(/(\d{1,3})\s*%/);
@@ -474,7 +483,7 @@ function parseLocalCot(ind, base){
   const faltan = r.faltan.filter(f => !/concepto/i.test(f));
   const total = (r.d.valores[0] && r.d.valores[0].monto) || r.d.suma || 0;
   const proy = r.concepto ? r.concepto.charAt(0).toUpperCase() + r.concepto.slice(1) : "";
-  const nuevo = {tipo:"cotizacion", fecha:r.d.fecha, cliente:r.d.cliente, nit:r.d.nit, moneda:r.d.moneda, pago:r.d.pago, proyecto:proy,
+  const nuevo = {tipo:"cotizacion", fecha:r.d.fecha, cliente:r.d.cliente, clienteTipo:r.d.clienteTipo, nit:r.d.nit, nitTipo:r.d.nitTipo, moneda:r.d.moneda, pago:r.d.pago, proyecto:proy,
     valores: total ? [{etiqueta:"Valor total del proyecto", monto:total, nota:"", destacado:true}] : [], suma: total};
   const d = base ? Object.assign(clone(base), Object.fromEntries(Object.entries(nuevo).filter(([k, v]) => v && !(Array.isArray(v) && !v.length)))) : nuevo;
   if (!proy && !(base && base.proyecto)) faltan.push("No encontré el nombre de la cotización. Escribe «por concepto de …» o ponlo en «Ajustar datos a mano».");
@@ -599,10 +608,10 @@ async function makeDocx(d){
       xml = xml.slice(0, e) + para({k:"C", r:[{t:d.proyecto.trim(), b:true}]}) + xml.slice(e);
     }
   }
-  const receptor = para({k:"N", r:[{t:"Razón Social / Proyecto:", b:true}, {t:" " + (d.cliente || "")}]}) +
-    (d.nit && d.nit.trim() ? para({k:"N", r:[{t:"NIT / CC:", b:true}, {t:" " + d.nit.trim()}]}) : "") +
+  const receptor = para({k:"N", r:[{t:tipoCliente(d) + ":", b:true}, {t:" " + (d.cliente || "")}]}) +
+    (d.nit && d.nit.trim() ? para({k:"N", r:[{t:tipoNit(d) + ":", b:true}, {t:" " + d.nit.trim()}]}) : "") +
     "";
-  xml = xml.replace("{{FECHA}}", () => escX(d.fecha || hoy()))
+  xml = xml.replace("<w:t>RUT / CC:</w:t>", "<w:t>RUT:</w:t>").replace("{{FECHA}}", () => escX(d.fecha || hoy()))
            .replace("{{RECEPTOR}}", () => receptor)
            .replace("{{CUERPO}}", () => (cot ? variableCot(d) : variable(d)).map(para).join(""))
            .replace("{{PAGO}}", () => cot ? "" : pagoSeq(d).map(para).join(""));
@@ -628,10 +637,10 @@ function fullSequence(d){
     {k:"C", r:[{t:d.fecha || hoy()}]}, {k:"E"},
     {k:"N", r:[{t:"EMISOR (Prestador del servicio):", b:true}]},
     {k:"N", r:[{t:"Nombre:", b:true}, {t:" Keyner Steban Trillos Useche"}]},
-    {k:"N", r:[{t:"RUT / CC:", b:true}, {t:" 1090384736-8"}]}, {k:"E"},
+    {k:"N", r:[{t:"RUT:", b:true}, {t:" 1090384736-8"}]}, {k:"E"},
     {k:"N", r:[{t:"RECEPTOR (Cliente):", b:true}]},
-    {k:"N", r:[{t:"Razón Social / Proyecto:", b:true}, {t:" " + (d.cliente || "")}]},
-    ...(d.nit && d.nit.trim() ? [{k:"N", r:[{t:"NIT / CC:", b:true}, {t:" " + d.nit.trim()}]}] : []),
+    {k:"N", r:[{t:tipoCliente(d) + ":", b:true}, {t:" " + (d.cliente || "")}]},
+    ...(d.nit && d.nit.trim() ? [{k:"N", r:[{t:tipoNit(d) + ":", b:true}, {t:" " + d.nit.trim()}]}] : []),
     {k:"BR"}
   ];
   const firma = [
@@ -685,6 +694,19 @@ function fit(){
 }
 
 /* ---------- Estado y formulario ---------- */
+// Una sola etiqueta: NIT o CC; Nombre, Razón social o Proyecto. Si no viene, se deduce.
+function tipoNit(d){
+  if (d.nitTipo === "NIT" || d.nitTipo === "CC") return d.nitTipo;
+  return /-\s*\d\s*$/.test(String(d.nit || "")) ? "NIT" : "CC";  // con dígito de verificación es NIT
+}
+function tipoCliente(d){
+  if (["Nombre", "Razón social", "Proyecto"].includes(d.clienteTipo)) return d.clienteTipo;
+  const c = String(d.cliente || "");
+  if (/\b(s\.?\s?a\.?\s?s|s\.?\s?a|ltda|e\.?\s?u|s\.?\s?c\.?\s?s|inc|llc|corp|sociedad|empresa|compañ[ií]a)\b\.?/i.test(c)) return "Razón social";
+  if (/\([^)]*\.[a-z]{2,}\)|\b[\w-]+\.(com|co|net|org|io|app|store|shop)\b/i.test(c)) return "Proyecto";
+  if (String(d.nit || "").trim()) return tipoNit(d) === "NIT" ? "Razón social" : "Nombre";
+  return "Razón social";
+}
 let D = normalize(clone(EJEMPLO)), docId = null, isExample = true;
 function normalize(d){
   const o = Object.assign({fecha:"", cliente:"", nit:"", concepto:"", intro:"", items:[], cierre:"", valores:[], suma:0}, d || {});
@@ -694,6 +716,7 @@ function normalize(d){
   o.moneda = /usd|d[oó]lar/i.test(String(o.moneda || "")) ? "USD" : "COP";
   ["fecha","cliente","nit","concepto","intro","cierre","proyecto","tiempo"].forEach(k => o[k] = String(o[k] ?? ""));
   o.tipo = d && d.tipo === "cotizacion" ? "cotizacion" : "cobro";
+  o.nitTipo = tipoNit(o); o.clienteTipo = tipoCliente(o);
   o.garantia = String(o.garantia ?? "").trim() || GARANTIA_DEF;
   o.condPago = String(o.condPago ?? "").trim() || COND_DEF;
   const ct = o.contacto && typeof o.contacto === "object" ? o.contacto : {};
@@ -720,6 +743,7 @@ function fillForm(){
   $("f_proyecto").value = D.proyecto; $("f_tiempo").value = D.tiempo; $("f_garantia").value = D.garantia; $("f_condpago").value = D.condPago;
   $("c_tel").value = D.contacto.tel; $("c_correo").value = D.contacto.correo; $("c_web").value = D.contacto.web;
   $("f_fecha").value = D.fecha; $("f_cliente").value = D.cliente; $("f_nit").value = D.nit;
+  $("f_clienteTipo").value = D.clienteTipo; $("f_nitTipo").value = D.nitTipo;
   $("f_concepto").value = D.concepto; $("f_intro").value = D.intro; $("f_cierre").value = D.cierre;
   $("f_suma").value = D.suma || ""; $("f_moneda").value = D.moneda;
   $("l_items").innerHTML = D.items.map((it, k) => `
@@ -752,7 +776,7 @@ function refresh(){
   store.set("kt_cuenta", {D, docId, isExample});
 }
 function bindForm(){
-  const map = {f_fecha:"fecha", f_cliente:"cliente", f_nit:"nit", f_concepto:"concepto", f_intro:"intro", f_cierre:"cierre", f_proyecto:"proyecto", f_tiempo:"tiempo", f_garantia:"garantia", f_condpago:"condPago"};
+  const map = {f_fecha:"fecha", f_cliente:"cliente", f_nit:"nit", f_nitTipo:"nitTipo", f_clienteTipo:"clienteTipo", f_concepto:"concepto", f_intro:"intro", f_cierre:"cierre", f_proyecto:"proyecto", f_tiempo:"tiempo", f_garantia:"garantia", f_condpago:"condPago"};
   ["tel","correo","web"].forEach(k => $("c_" + k).addEventListener("input", e => { D.contacto[k] = e.target.value; isExample = false; refresh(); }));
   Object.entries(map).forEach(([id, k]) => $(id).addEventListener("input", e => { D[k] = e.target.value; isExample = false; refresh(); }));
   $("f_suma").addEventListener("input", e => { D.suma = redondear(e.target.value); isExample = false; refresh(); });
@@ -814,7 +838,9 @@ function bindAjustes(){
 const FORMA = `{
   "fecha": "texto, ej. \\"14 de octubre de 2026\\"",
   "cliente": "razón social o nombre del cliente/proyecto",
+  "clienteTipo": "\\"Nombre\\" si es una persona, \\"Razón social\\" si es una empresa o \\"Proyecto\\" si es un proyecto o sitio",
   "nit": "solo el número de cédula o NIT si se indica; si no, \\"\\"",
+  "nitTipo": "\\"CC\\" si es cédula, \\"NIT\\" si es NIT o RUT; si no hay número, \\"\\"",
   "concepto": "párrafo de la sección 1, con **negrillas**",
   "intro": "frase antes de la lista o \\"\\"",
   "items": [{"titulo": "título corto sin dos puntos", "detalle": "detalle"}],
@@ -874,7 +900,9 @@ const FORMA_COT = `{
   "fecha": "texto, ej. \\"22 de octubre de 2026\\"",
   "proyecto": "nombre de la cotización o del proyecto, corto",
   "cliente": "razón social o nombre del cliente",
+  "clienteTipo": "\\"Nombre\\" si es una persona, \\"Razón social\\" si es una empresa o \\"Proyecto\\" si es un proyecto o sitio",
   "nit": "solo el número de cédula o NIT del cliente si se indica; si no, \\"\\"",
+  "nitTipo": "\\"CC\\" si es cédula, \\"NIT\\" si es NIT o RUT; si no hay número, \\"\\"",
   "intro": "frase que presenta el alcance o \\"\\"",
   "items": [{"titulo": "título corto sin dos puntos", "detalle": "detalle"}],
   "cierre": "frase opcional después de la lista o \\"\\"",
@@ -1026,8 +1054,9 @@ async function generar(fix, tipoSel){
       D = normalize({...res, tipo});
       const loc = (cot ? parseLocalCot(ind, null) : parseLocal(ind, null)).d;  // respaldo si la IA dejó vacíos
       if (!D.suma && loc.suma) { D.suma = loc.suma; if (!D.valores.length) D.valores = loc.valores; }
-      if (!D.cliente && loc.cliente) D.cliente = loc.cliente;
-      if (!D.nit && loc.nit) D.nit = loc.nit;
+      if (!D.cliente && loc.cliente) { D.cliente = loc.cliente; if (loc.clienteTipo) D.clienteTipo = loc.clienteTipo; }
+      if (!D.nit && loc.nit) { D.nit = loc.nit; D.nitTipo = tipoNit(loc); }
+      if (!["Nombre", "Razón social", "Proyecto"].includes(res.clienteTipo)) D.clienteTipo = tipoCliente({...D, clienteTipo: ""});
     } catch (e) {
       busy(false);
       if (e.name === "AbortError") { setSt("stGen", "Detenido."); return; }
